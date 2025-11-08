@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-v2.0.0-blue.svg" alt="Version 2.0.0">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License MIT">
+ 
   <img src="https://img.shields.io/badge/Language-Python%20%7C%20C%23-informational" alt="Language Python | C#">
 </p>
 
@@ -100,9 +100,29 @@ The following critical traffic and control metrics are pushed to the ThingsBoard
 
 ## ✍️ Contact and License
 
-This project is maintained by:
+Sumo2Unity Script was forked from :
 
 **Ahmad Mohammadi, PhD**
-* **LinkedIn:** [ahmadmohammadi1441](https://www.linkedin.com/in/ahmadmohammadi1441/)
+* **LinkedIn:** [linkedIn](https://www.linkedin.com/in/ahmadmohammadi1441/) [github]()
+* **GitHub:** [github](https://github.com/Ahmad1441)
 
-This project is licensed under the **MIT License**. See the repository for details.
+**SimuTraffX-Lab**
+* **GitHub:** [github](https://github.com/SimuTraffX-Lab/SUMO2Unity) 
+
+Currently developed by :
+
+**Aditanshu Sahu**
+* **LinkedIn:** [linkedIn](https://www.linkedin.com/in/aditanshu-sahu-034b1b277/)
+* **GitHub:** [github](https://github.com/aditans)
+
+**Rishit Kumar**
+* **GitHub:** [github](https://github.com/SimuTraffX-Lab/SUMO2Unity) 
+
+**Shubh Rastogi**
+* **GitHub:** [github](https://github.com/SimuTraffX-Lab/SUMO2Unity) 
+
+**Anvith Jasti**
+* **GitHub:** [github](https://github.com/SimuTraffX-Lab/SUMO2Unity) 
+
+
+
