@@ -116,13 +116,17 @@ Currently developed by :
 * **GitHub:** [github](https://github.com/aditans)
 
 **Rishit Kumar**
-* **GitHub:** [github](https://github.com/SimuTraffX-Lab/SUMO2Unity) 
+* **LinkedIn:** [github](https://www.linkedin.com/in/rishit-kumar-145b51306/) 
+* **GitHub:** [linkedIn](https://github.com/Rishit-Kumar)
+
 
 **Shubh Rastogi**
-* **GitHub:** [github](https://github.com/SimuTraffX-Lab/SUMO2Unity) 
+* **LinkedIn:** [linkedIn](https://www.linkedin.com/in/shubh-rastogi-7b04b82b1/)
+* **GitHub:** [github](https://github.com/BlackDeath619)
 
 **Anvith Jasti**
-* **GitHub:** [github](https://github.com/SimuTraffX-Lab/SUMO2Unity) 
+* **LinkedIn:** [linkedIn](https://www.linkedin.com/in/anvith-j-693259389/)
+* **GitHub:** [github](https://github.com/Noob-ooN)
 
 
 
