@@ -5,7 +5,7 @@
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
     <!-- VTypes -->
-    <vType id="301" length="4.68" width="2.32" height="1.47" color="0,0,128"/>
+    <vType id="301" length="4.68" width="2.32" height="1.47" color="0,0,128" maxSpeed="20.0"/>
     <vType id="302" length="4.68" width="2.32" height="1.47" color="132,132,132"/>
     <vType id="303" length="4.06" width="1.84" color="66,66,66"/>
     <vType id="304" length="4.07" width="1.84" color="228,58,58"/>

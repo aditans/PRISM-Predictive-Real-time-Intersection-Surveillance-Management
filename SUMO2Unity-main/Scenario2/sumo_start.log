@@ -1,0 +1,16 @@
+Loading net-file from 'C:\Users\aditanshu sahu\Downloads\SUMO2Unity-main\SUMO2Unity-main\Scenario2\Sumo2Unity.net.xml' ... done (4ms).
+Loading additional-files from 'C:\Users\aditanshu sahu\Downloads\SUMO2Unity-main\SUMO2Unity-main\Scenario2\Sumo2Unity.Poly.xml' ... done (17ms).
+Loading route-files incrementally from 'C:\Users\aditanshu sahu\Downloads\SUMO2Unity-main\SUMO2Unity-main\Scenario2\Sumo2Unity.rou.xml'
+Loading done.
+Simulation started with time: 0.00.
+Simulation ended at time: 368.00.
+Performance:
+ Duration: 7.35s
+ Real time factor: 50.0817
+ UPS: 17458.764290
+Vehicles:
+ Inserted: 259 (Loaded: 261)
+ Running: 44
+ Waiting: 1
+DijkstraRouter answered 468 queries and explored 3.88 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).

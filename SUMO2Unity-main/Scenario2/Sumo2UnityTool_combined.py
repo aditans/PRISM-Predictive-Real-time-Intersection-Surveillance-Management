@@ -207,6 +207,7 @@ for k, v in DEFAULTS.items():
 use_gui_var   = tk.BooleanVar(value=True)
 rtf_var       = tk.BooleanVar(value=True)
 free_cam_var  = tk.BooleanVar(value=False)        # ★ NEW (Free-cam)
+collision_flags_var = tk.BooleanVar(value=False)  # opt-in: launch SUMO with collision flags
 
 ttk.Checkbutton(root, text="Run SUMO with GUI",  variable=use_gui_var)\
    .grid(row=row, column=0, columnspan=2, sticky="w", padx=6, pady=3); row += 1
@@ -215,6 +216,8 @@ ttk.Checkbutton(root, text="Calculate RTF",      variable=rtf_var)\
 ttk.Checkbutton(root, text="Free camera (no follow ego vehicle)",
                 variable=free_cam_var) \
    .grid(row=row, column=0, columnspan=2, sticky="w", padx=6, pady=3); row += 1  # ★ NEW
+ttk.Checkbutton(root, text="Enable SUMO collision flags (opt-in)", variable=collision_flags_var) \
+    .grid(row=row, column=0, columnspan=2, sticky="w", padx=6, pady=3); row += 1
 # ────────────────────────────────────────────────────────────────
 
 def center(win):
@@ -276,6 +279,7 @@ def run_sim(cfg: dict):
     use_gui              = cfg["use_gui"]
     calc_rtf             = cfg["calc_rtf"]
     free_cam             = cfg["free_cam"]           # ★ NEW
+    enable_collision_flags = cfg.get("enable_collision_flags", False)
 
     # ---------- logging ----------
     logging.basicConfig(level=logging.INFO,
@@ -401,6 +405,14 @@ def run_sim(cfg: dict):
     sumo_bin = "sumo-gui" if use_gui else "sumo"
     sumo_cmd = [sumo_bin,"-c",sumo_cfg,"--step-length",str(steplength),
                 "--lateral-resolution",str(lateral_resolution)]
+    # Append optional collision flags when user enabled them in GUI
+    if enable_collision_flags:
+        sumo_cmd += [
+            "--collision.mingap-factor","0",
+            "--collision.action","none",
+            "--collision.stoptime","0",
+            "--collision.check-junctions","true"
+        ]
     if use_gui:
         sumo_cmd += ["--delay","0"]   # keep 0-delay only when GUI present
 
@@ -489,6 +501,82 @@ def run_sim(cfg: dict):
     # ---------- containers ----------
     # ADD this line:
     telemetry_log = [] 
+    # one-time collision injector state
+    collision_injected = False
+
+    def try_force_collision():
+        """Find two non-ego vehicles on the same road and force a collision.
+
+        Strategy: pick two vehicles on the same road edge (leader ahead, follower behind),
+        stop the leader and disable safety on the follower so it will close the gap.
+        Returns True if an injection was attempted.
+        """
+        nonlocal collision_injected
+        try:
+            vlist = traci.vehicle.getIDList()
+            if not vlist or len(vlist) < 2:
+                return False
+
+            # group by road id
+            by_road = {}
+            for v in vlist:
+                if v == ego:  # never target the ego
+                    continue
+                try:
+                    road = traci.vehicle.getRoadID(v)
+                except Exception:
+                    continue
+                by_road.setdefault(road, []).append(v)
+
+            for road, vids in by_road.items():
+                if road is None or road == "":
+                    continue
+                if len(vids) < 2:
+                    continue
+
+                # sort by lane position (ascending), assume higher => further along
+                try:
+                    vids_sorted = sorted(vids, key=lambda vid: traci.vehicle.getLanePosition(vid))
+                except Exception:
+                    continue
+
+                # choose the last two (leader is furthest along)
+                leader = vids_sorted[-1]
+                follower = vids_sorted[-2]
+                # safety: avoid ego and identical ids
+                if leader == ego or follower == ego or leader == follower:
+                    continue
+
+                try:
+                    # stop the leader
+                    traci.vehicle.setSpeed(leader, 0.0)
+                    # disable automatic safety modes on follower
+                    try:
+                        traci.vehicle.setSpeedMode(follower, 0)
+                    except Exception:
+                        pass
+                    try:
+                        traci.vehicle.setLaneChangeMode(follower, 0)
+                    except Exception:
+                        pass
+                    # nudge follower to a bit higher speed so it will close gap
+                    try:
+                        cur_sp = traci.vehicle.getSpeed(follower)
+                        # be more aggressive so follower closes gap quickly
+                        trig_sp = max(cur_sp * 1.5, 15.0)
+                        traci.vehicle.setSpeed(follower, float(trig_sp))
+                    except Exception:
+                        pass
+
+                    logger.info(f"Forced collision injection: leader={leader}, follower={follower}, road={road}")
+                    collision_injected = True
+                    return True
+                except Exception:
+                    # try next candidate
+                    continue
+        except Exception:
+            return False
+        return False
     
     last_send = None; current_sec = 0
     send_int, sim_speeds = [], []
@@ -599,6 +687,18 @@ def run_sim(cfg: dict):
             vjson = json.dumps({"type":"vehicles","vehicles":vdata},
                                separators=(',',':'))
             prof["Collect"].append(time.perf_counter()-t0)
+
+            # --- Automatic collision injection trigger (one-time) ---
+            try:
+                # Trigger as soon as there are at least two non-ego vehicles present
+                if (not collision_injected):
+                    # vlist was collected above
+                    non_ego_count = sum(1 for vid in vlist if vid != ego)
+                    if non_ego_count >= 2:
+                        try_force_collision()
+            except Exception:
+                # don't let injection errors stop simulation
+                pass
 
             # ❼ traffic lights once per second (Original code)
             if sim_t-last_tl_t >= TL_INT:
@@ -739,6 +839,7 @@ def start_clicked():
         cfg["use_gui"]  = bool(use_gui_var.get())
         cfg["calc_rtf"] = bool(rtf_var.get())
         cfg["free_cam"] = bool(free_cam_var.get())          # ★ NEW
+        cfg["enable_collision_flags"] = bool(collision_flags_var.get())
     except ValueError:
         messagebox.showerror("Invalid input","Please enter numeric values.")
         return
