@@ -34,9 +34,13 @@ def resource_path(fname: str) -> str:
 root = tk.Tk(); root.title("Sumo2Unity Tool"); root.resizable(True, True)
 
 def load_resized(path: str, target_w: int) -> ImageTk.PhotoImage:
-    img = Image.open(resource_path(path))
-    r   = img.height / img.width
-    return ImageTk.PhotoImage(img.resize((target_w, int(target_w*r))))
+    try:
+        img = Image.open(resource_path(path))
+        r   = img.height / img.width
+        return ImageTk.PhotoImage(img.resize((target_w, int(target_w*r))))
+    except Exception:
+        # Fallback placeholder keeps GUI runnable when bundled images are missing.
+        return ImageTk.PhotoImage(Image.new("RGB", (target_w, int(target_w * 0.4)), (200, 200, 200)))
 
 IMG_W = 600
 banner_imgs = [load_resized("2.Integration.JPG", IMG_W),
@@ -64,6 +68,7 @@ for k, v in DEFAULTS.items():
 use_gui_var   = tk.BooleanVar(value=True)
 rtf_var       = tk.BooleanVar(value=True)
 free_cam_var  = tk.BooleanVar(value=False)        # ★ NEW (Free-cam)
+force_accident_var = tk.BooleanVar(value=False)
 
 ttk.Checkbutton(root, text="Run SUMO with GUI",  variable=use_gui_var)\
    .grid(row=row, column=0, columnspan=2, sticky="w", padx=6, pady=3); row += 1
@@ -72,6 +77,9 @@ ttk.Checkbutton(root, text="Calculate RTF",      variable=rtf_var)\
 ttk.Checkbutton(root, text="Free camera (no follow ego vehicle)",
                 variable=free_cam_var) \
    .grid(row=row, column=0, columnspan=2, sticky="w", padx=6, pady=3); row += 1  # ★ NEW
+ttk.Checkbutton(root, text="Force one vehicle collision (demo)",
+                     variable=force_accident_var) \
+    .grid(row=row, column=0, columnspan=2, sticky="w", padx=6, pady=3); row += 1
 # ────────────────────────────────────────────────────────────────
 
 def center(win):
@@ -128,6 +136,7 @@ def run_sim(cfg: dict):
     use_gui              = cfg["use_gui"]
     calc_rtf             = cfg["calc_rtf"]
     free_cam             = cfg["free_cam"]           # ★ NEW
+    force_accident       = cfg.get("force_accident", False)
 
     # ---------- logging ----------
     logging.basicConfig(level=logging.INFO,
@@ -145,6 +154,13 @@ def run_sim(cfg: dict):
     sumo_bin = "sumo-gui" if use_gui else "sumo"
     sumo_cmd = [sumo_bin,"-c",sumo_cfg,"--step-length",str(steplength),
                 "--lateral-resolution",str(lateral_resolution)]
+    # Keep collision events in-place and detect physical overlap + junction overlap.
+    sumo_cmd += [
+        "--collision.action", "none",
+        "--collision.stoptime", "0",
+        "--collision.mingap-factor", "0",
+        "--collision.check-junctions", "true"
+    ]
     if use_gui:
         sumo_cmd += ["--delay","0"]   # keep 0-delay only when GUI present
 
@@ -217,6 +233,58 @@ def run_sim(cfg: dict):
     start_rec_sent = False
     start_sim_t = start_wall_t = None
     rtf_started  = False; last_sim, last_wall = 0, 0
+    collision_injected = False
+    injected_pair = None
+    collision_event_sent = False
+
+    def try_inject_collision_once(sim_time_now: float) -> bool:
+        """Force one rear-end conflict by disabling safety checks on follower.
+        This follows SUMO guidance: setSpeed + disabling speed/lane-change modes.
+        """
+        nonlocal collision_injected, injected_pair
+
+        if collision_injected:
+            return False
+
+        veh_ids = [vid for vid in traci.vehicle.getIDList() if vid != ego]
+        if len(veh_ids) < 2:
+            return False
+
+        lane_groups = {}
+        for vid in veh_ids:
+            try:
+                lane_id = traci.vehicle.getLaneID(vid)
+                lane_pos = traci.vehicle.getLanePosition(vid)
+                lane_groups.setdefault(lane_id, []).append((lane_pos, vid))
+            except traci.TraCIException:
+                continue
+
+        for lane_id, lane_vehicles in lane_groups.items():
+            if len(lane_vehicles) < 2:
+                continue
+            # Higher lane position is the leader.
+            lane_vehicles.sort(key=lambda it: it[0])
+            follower_pos, follower = lane_vehicles[-2]
+            leader_pos, leader = lane_vehicles[-1]
+            if leader_pos - follower_pos > 35:
+                continue
+
+            try:
+                traci.vehicle.setSpeed(leader, 0.0)
+                traci.vehicle.setSpeedMode(follower, 0)
+                traci.vehicle.setLaneChangeMode(follower, 0)
+                traci.vehicle.setSpeed(follower, max(13.0, traci.vehicle.getSpeed(follower)))
+                collision_injected = True
+                injected_pair = (leader, follower)
+                logger.warning(
+                    "Accident injection armed at t=%.2f on lane %s (leader=%s follower=%s)",
+                    sim_time_now, lane_id, leader, follower
+                )
+                return True
+            except traci.TraCIException:
+                continue
+
+        return False
 
     # ---------- warm-up ----------
     while traci.simulation.getTime() < IntegrationStartTime:
@@ -248,6 +316,38 @@ def run_sim(cfg: dict):
             t0 = time.perf_counter(); traci.simulationStep()
             prof["Step"].append(time.perf_counter()-t0)
             if use_gui: cam_follow("View #0", ego)
+
+            # ❷.1 optional one-time collision injection after warm-up.
+            if force_accident and sim_t >= ExperimentStartTime + 2:
+                try_inject_collision_once(sim_t)
+
+            # ❷.2 detect collision events and publish to Unity.
+            try:
+                collided_ids = traci.simulation.getCollidingVehiclesIDList()
+            except traci.TraCIException:
+                collided_ids = []
+
+            if collided_ids and not collision_event_sent:
+                accident_pos = None
+                for vid in collided_ids:
+                    try:
+                        x, y, z = traci.vehicle.getPosition3D(vid)
+                        accident_pos = [round(x, 2), round(y, 2), round(z, 2)]
+                        break
+                    except traci.TraCIException:
+                        continue
+
+                accident_msg = {
+                    "type": "accident",
+                    "event": "collision",
+                    "message": "Accident detected",
+                    "sim_time": round(sim_t, 2),
+                    "vehicle_ids": collided_ids,
+                    "position": accident_pos
+                }
+                pub.send_string(json.dumps(accident_msg, separators=(',', ':')))
+                logger.warning("Collision detected at t=%.2f with vehicles=%s", sim_t, collided_ids)
+                collision_event_sent = True
 
             # ❸ send START_RECORDING after warm-up (independent of RTF)
             if sim_t >= ExperimentStartTime and not start_rec_sent:
@@ -349,6 +449,7 @@ def start_clicked():
         cfg["use_gui"]  = bool(use_gui_var.get())
         cfg["calc_rtf"] = bool(rtf_var.get())
         cfg["free_cam"] = bool(free_cam_var.get())          # ★ NEW
+        cfg["force_accident"] = bool(force_accident_var.get())
     except ValueError:
         messagebox.showerror("Invalid input","Please enter numeric values.")
         return

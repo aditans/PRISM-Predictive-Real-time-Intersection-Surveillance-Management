@@ -43,6 +43,23 @@ public class SimulationController : MonoBehaviour
     public GameObject junctions;           // drag ‘Junctions’ root here
     private readonly Dictionary<string, GameObject> junctionCache = new();
 
+    [Header("Accident Event UI / FX")]
+    public GameObject accidentExplosionPrefab;
+    public GameObject accidentSmokePrefab;
+    public float accidentExplosionDuration = 3f;
+    public float accidentSmokeDuration = 10f;
+    [Range(0f, 1f)]
+    public float accidentSfxVolume = 0.9f;
+    public float accidentSfxMaxDistance = 90f;
+    public AudioClip[] accidentSfxClips;
+    public float accidentBannerDuration = 4f;
+    public bool showAccidentIndicator = true;
+    public float accidentIndicatorDuration = 20f;
+    private string accidentBannerText = string.Empty;
+    private float accidentBannerUntil = -1f;
+    private Vector3 accidentIndicatorWorldPos = Vector3.zero;
+    private float accidentIndicatorUntil = -1f;
+
     [Serializable]
     public class Vehicle
     {
@@ -55,6 +72,80 @@ public class SimulationController : MonoBehaviour
         public float lat_speed;
     }
 
+    private static bool HasValidBodyCollider(GameObject go)
+    {
+        var cols = go.GetComponentsInChildren<Collider>(includeInactive: true);
+        foreach (var col in cols)
+        {
+            if (col is WheelCollider) continue;
+            // MeshCollider without mesh is invalid
+            if (col is MeshCollider mc && mc.sharedMesh == null) continue;
+            // Trigger colliders don't block
+            if (col.isTrigger) continue;
+            return true;
+        }
+        return false;
+    }
+
+    private static void EnsureBodyCollider(GameObject go)
+    {
+        // Disable trigger on any existing non-wheel collider
+        foreach (var col in go.GetComponentsInChildren<Collider>(includeInactive: true))
+        {
+            if (col is WheelCollider) continue;
+            col.isTrigger = false;
+        }
+
+        var renderers = go.GetComponentsInChildren<Renderer>(includeInactive: true);
+        if (renderers == null || renderers.Length == 0)
+        {
+            var bc = go.GetComponent<BoxCollider>();
+            if (bc == null) bc = go.AddComponent<BoxCollider>();
+            bc.isTrigger = false;
+            return;
+        }
+        var bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+        var root = go.transform;
+        var centerWS = bounds.center;
+        var sizeWS = bounds.size;
+        var centerLS = root.InverseTransformPoint(centerWS);
+        var bcFinal = go.GetComponent<BoxCollider>();
+        if (bcFinal == null) bcFinal = go.AddComponent<BoxCollider>();
+        bcFinal.center = centerLS;
+        bcFinal.size = new Vector3(
+            Mathf.Abs(sizeWS.x / Mathf.Max(root.lossyScale.x, 0.0001f)),
+            Mathf.Abs(sizeWS.y / Mathf.Max(root.lossyScale.y, 0.0001f)),
+            Mathf.Abs(sizeWS.z / Mathf.Max(root.lossyScale.z, 0.0001f))
+        );
+        bcFinal.isTrigger = false;
+    }
+
+    private static void EnsureMeshBodyCollider(GameObject go)
+{
+    // If a valid non-wheel MeshCollider already exists, do nothing
+    foreach (var mc in go.GetComponentsInChildren<MeshCollider>(includeInactive: true))
+    {
+        if (mc.sharedMesh != null && mc.convex)
+            return;
+    }
+
+    // Find the visual body mesh
+    MeshFilter mf = go.GetComponentInChildren<MeshFilter>();
+    if (mf == null || mf.sharedMesh == null)
+    {
+        Debug.LogWarning($"[{go.name}] No MeshFilter found for MeshCollider");
+        return;
+    }
+
+    // Add MeshCollider to the SAME object as the mesh
+    MeshCollider meshCol = mf.gameObject.AddComponent<MeshCollider>();
+    meshCol.sharedMesh = mf.sharedMesh;
+    meshCol.convex = true;              // REQUIRED for Rigidbody
+    meshCol.isTrigger = false;
+}
+
+
     [Serializable]
     private class VehicleWrapper
     {
@@ -66,6 +157,17 @@ public class SimulationController : MonoBehaviour
     {
         public string junction_id;
         public string state;
+    }
+
+    [Serializable]
+    public class AccidentMessage
+    {
+        public string type;
+        public string @event;
+        public string message;
+        public float sim_time;
+        public string[] vehicle_ids;
+        public float[] position;
     }
 
     [Serializable]
@@ -155,6 +257,27 @@ public class SimulationController : MonoBehaviour
         egoVehicle = GameObject.Instantiate(egoVehicle, initialPosition, initialRotation);
         egoVehicle.name = egoVehicleId;
         vehicleObjects.Add(egoVehicleId, egoVehicle);
+
+        // Add number plate to ego vehicle
+        egoVehicle.AddComponent<NumberPlate>();
+
+        // Ensure a valid body collider exists on the ego (non-wheel, non-trigger, valid mesh)
+        if (!HasValidBodyCollider(egoVehicle))
+        {
+            ForceAddMeshColliders(egoVehicle);
+
+
+        }
+        // Force any MeshColliders to convex
+        foreach (var mc in egoVehicle.GetComponentsInChildren<MeshCollider>(includeInactive: true)) mc.convex = true;
+        var egoRb = egoVehicle.GetComponent<Rigidbody>();
+        if (egoRb == null) egoRb = egoVehicle.AddComponent<Rigidbody>();
+        egoRb.isKinematic = false;
+        egoRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        egoRb.interpolation = RigidbodyInterpolation.Interpolate;
+        egoRb.detectCollisions = true;
+        var egoMeshCols = egoVehicle.GetComponentsInChildren<MeshCollider>(includeInactive: true);
+        foreach (var mc in egoMeshCols) mc.convex = true;
     }
 
     void Update()
@@ -241,7 +364,8 @@ public class SimulationController : MonoBehaviour
         }
 
         GameObject egoVehicle = vehicleObjects[egoVehicleId];
-        long_speed = egoVehicle.GetComponent<Rigidbody>().linearVelocity.magnitude;
+        var rb = egoVehicle.GetComponent<Rigidbody>();
+        long_speed = rb.linearVelocity.magnitude;
 
         Vector3 position = egoVehicle.transform.position;
         float unroundangle = egoVehicle.transform.rotation.eulerAngles.y;
@@ -251,8 +375,8 @@ public class SimulationController : MonoBehaviour
         double z = Math.Round(position.y, 2);
         string type = "ego";
 
-        float vertical_speed = (float)Math.Round(egoVehicle.GetComponent<Rigidbody>().linearVelocity.y, 2);
-        float lateral_speed = (float)Math.Round(egoVehicle.GetComponent<Rigidbody>().linearVelocity.z, 2);
+        float vertical_speed = (float)Math.Round(rb.linearVelocity.y, 2);
+        float lateral_speed = (float)Math.Round(rb.linearVelocity.z, 2);
 
         Vehicle egoVehicleData = new Vehicle();
         egoVehicleData.vehicle_id = egoVehicleId;
@@ -274,6 +398,40 @@ public class SimulationController : MonoBehaviour
             return vehicleDataJson;
         }
     }
+    private static void ForceAddMeshColliders(GameObject go)
+{
+    MeshFilter[] meshes = go.GetComponentsInChildren<MeshFilter>(true);
+
+    if (meshes == null || meshes.Length == 0)
+    {
+        Debug.LogError($"[{go.name}] No MeshFilters found!");
+        return;
+    }
+
+    foreach (var mf in meshes)
+    {
+        if (mf.sharedMesh == null) continue;
+
+        string n = mf.gameObject.name.ToLower();
+
+        // Skip wheels & glass & lights
+        if (n.Contains("wheel") || n.Contains("glass") || n.Contains("light"))
+            continue;
+
+        MeshCollider mc = mf.gameObject.GetComponent<MeshCollider>();
+        if (mc == null)
+        {
+            mc = mf.gameObject.AddComponent<MeshCollider>();
+        }
+
+        mc.sharedMesh = mf.sharedMesh;
+        mc.convex = true;
+        mc.isTrigger = false;
+    }
+
+    Debug.Log($"[{go.name}] MeshColliders added to {meshes.Length} meshes");
+}
+
 
     public void HandleMessage(string message)
     {
@@ -367,6 +525,27 @@ public class SimulationController : MonoBehaviour
 
                     GameObject newVehicle = GameObject.Instantiate(prefabToInstantiate, newPosition, newRotation);
                     newVehicle.name = vehicle.vehicle_id;
+
+                    // Add number plate to new vehicle
+                    newVehicle.AddComponent<NumberPlate>();
+
+                    // Ensure a valid body collider exists on the spawned vehicle
+                    if (!HasValidBodyCollider(newVehicle))
+                    {
+                       ForceAddMeshColliders(newVehicle);
+
+
+                    }
+                    // Force any MeshColliders to convex
+                    foreach (var mc in newVehicle.GetComponentsInChildren<MeshCollider>(includeInactive: true)) mc.convex = true;
+                    var rb2 = newVehicle.GetComponent<Rigidbody>();
+                    if (rb2 == null) rb2 = newVehicle.AddComponent<Rigidbody>();
+                    rb2.isKinematic = false; // dynamic for proper collisions
+                    rb2.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                    rb2.interpolation = RigidbodyInterpolation.Interpolate;
+                    rb2.detectCollisions = true;
+                    foreach (var mc in newVehicle.GetComponentsInChildren<MeshCollider>(includeInactive: true)) mc.convex = true;
+
                     VehicleController vc = newVehicle.GetComponent<VehicleController>();
                     if (vc == null)
                     {
@@ -378,6 +557,12 @@ public class SimulationController : MonoBehaviour
                 }
             }
 
+        }
+        else if (common.type == "accident")
+        {
+            var accident = JsonUtility.FromJson<AccidentMessage>(message);
+            TriggerAccidentFeedback(accident);
+            return;
         }
         else if (common.type == "trafficlights")
         {
@@ -399,6 +584,184 @@ public class SimulationController : MonoBehaviour
         {
             Debug.LogWarning("Received message with unknown type: " + common.type);
         }
+    }
+
+    private void TriggerAccidentFeedback(AccidentMessage accident)
+    {
+        if (accident == null)
+        {
+            return;
+        }
+
+        string vehicles = (accident.vehicle_ids != null && accident.vehicle_ids.Length > 0)
+            ? string.Join(", ", accident.vehicle_ids)
+            : "unknown";
+
+        string msg = string.IsNullOrWhiteSpace(accident.message)
+            ? "Accident detected"
+            : accident.message;
+
+        accidentBannerText = $"{msg}  |  Vehicles: {vehicles}  |  t={accident.sim_time:F2}s";
+        accidentBannerUntil = Time.time + Mathf.Max(1f, accidentBannerDuration);
+        Debug.LogWarning($"[ACCIDENT] {accidentBannerText}");
+
+        Vector3 fxPosition;
+        bool hasExplicitPosition = accident.position != null && accident.position.Length >= 3;
+
+        if (hasExplicitPosition)
+        {
+            // SUMO sends [x, y, z], Unity world mapping in this project is (x, z, y).
+            fxPosition = new Vector3(accident.position[0], accident.position[2], accident.position[1]);
+        }
+        else
+        {
+            fxPosition = ResolveAccidentPositionFromVehicles(accident.vehicle_ids);
+        }
+
+        if (accidentExplosionPrefab != null)
+        {
+            var fx = Instantiate(accidentExplosionPrefab, fxPosition + Vector3.up * 0.6f, Quaternion.identity);
+            Destroy(fx, Mathf.Max(1f, accidentExplosionDuration));
+        }
+
+        if (accidentSmokePrefab != null)
+        {
+            var smoke = Instantiate(accidentSmokePrefab, fxPosition + Vector3.up * 0.4f, Quaternion.identity);
+            Destroy(smoke, Mathf.Max(1f, accidentSmokeDuration));
+        }
+
+        if (accidentSfxClips != null && accidentSfxClips.Length > 0)
+        {
+            AudioClip clip = accidentSfxClips[UnityEngine.Random.Range(0, accidentSfxClips.Length)];
+            if (clip != null)
+            {
+                GameObject sfxObj = new GameObject("AccidentSfx");
+                sfxObj.transform.position = fxPosition;
+                AudioSource src = sfxObj.AddComponent<AudioSource>();
+                src.spatialBlend = 1f;  // 3D sound
+                src.rolloffMode = AudioRolloffMode.Linear;
+                src.maxDistance = Mathf.Max(5f, accidentSfxMaxDistance);
+                src.volume = Mathf.Clamp01(accidentSfxVolume);
+                src.clip = clip;
+                src.Play();
+                Destroy(sfxObj, clip.length + 0.2f);
+            }
+        }
+
+        if (showAccidentIndicator)
+        {
+            accidentIndicatorWorldPos = fxPosition;
+            accidentIndicatorUntil = Time.time + Mathf.Max(2f, accidentIndicatorDuration);
+        }
+    }
+
+    private Vector3 ResolveAccidentPositionFromVehicles(string[] ids)
+    {
+        if (ids != null)
+        {
+            foreach (var id in ids)
+            {
+                if (string.IsNullOrEmpty(id))
+                {
+                    continue;
+                }
+
+                if (vehicleObjects.TryGetValue(id, out var go) && go != null)
+                {
+                    return go.transform.position;
+                }
+            }
+        }
+
+        if (vehicleObjects.TryGetValue(egoVehicleId, out var ego) && ego != null)
+        {
+            return ego.transform.position;
+        }
+
+        return Vector3.zero;
+    }
+
+    private void OnGUI()
+    {
+        if (string.IsNullOrEmpty(accidentBannerText) || Time.time > accidentBannerUntil)
+        {
+            DrawAccidentIndicator();
+            return;
+        }
+
+        GUIStyle style = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = 24,
+            fontStyle = FontStyle.Bold,
+            normal = { textColor = Color.red }
+        };
+
+        Rect rect = new Rect(0f, 20f, Screen.width, 36f);
+        GUI.Label(rect, accidentBannerText, style);
+
+        DrawAccidentIndicator();
+    }
+
+    private void DrawAccidentIndicator()
+    {
+        if (!showAccidentIndicator || Time.time > accidentIndicatorUntil)
+        {
+            return;
+        }
+
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            return;
+        }
+
+        Vector3 screenPos3 = cam.WorldToScreenPoint(accidentIndicatorWorldPos);
+        Vector2 screenPos = new Vector2(screenPos3.x, Screen.height - screenPos3.y);
+        Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+
+        GUIStyle style = new GUIStyle(GUI.skin.box)
+        {
+            fontSize = 16,
+            alignment = TextAnchor.MiddleCenter,
+            fontStyle = FontStyle.Bold
+        };
+
+        string label;
+        if (screenPos3.z <= 0f)
+        {
+            label = "ACCIDENT BEHIND";
+            Rect behindRect = new Rect(center.x - 90f, Screen.height - 70f, 180f, 30f);
+            GUI.Box(behindRect, label, style);
+            return;
+        }
+
+        bool onScreen = screenPos.x >= 0f && screenPos.x <= Screen.width && screenPos.y >= 0f && screenPos.y <= Screen.height;
+        if (onScreen)
+        {
+            Rect targetRect = new Rect(screenPos.x - 60f, screenPos.y - 45f, 120f, 28f);
+            GUI.Box(targetRect, "ACCIDENT", style);
+            return;
+        }
+
+        Vector2 dir = (screenPos - center).normalized;
+        float margin = 30f;
+        float x = Mathf.Clamp(screenPos.x, margin, Screen.width - margin);
+        float y = Mathf.Clamp(screenPos.y, margin, Screen.height - margin);
+
+        string arrow;
+        if (Mathf.Abs(dir.x) > Mathf.Abs(dir.y))
+        {
+            arrow = dir.x > 0 ? ">>" : "<<";
+        }
+        else
+        {
+            arrow = dir.y > 0 ? "vv" : "^^";
+        }
+
+        label = arrow + " ACCIDENT";
+        Rect edgeRect = new Rect(x - 70f, y - 15f, 140f, 30f);
+        GUI.Box(edgeRect, label, style);
     }
 
     public void EnqueueOnMainThread(string message)

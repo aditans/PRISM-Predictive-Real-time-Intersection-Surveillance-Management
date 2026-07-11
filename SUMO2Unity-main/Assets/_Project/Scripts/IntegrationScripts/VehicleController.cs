@@ -29,7 +29,7 @@ public class VehicleController : MonoBehaviour
         rb.useGravity = false;
         rb.linearDamping = 1f;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
-        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
         curPos = lastPos = transform.position;
         curRot = lastRot = transform.rotation;
@@ -102,8 +102,7 @@ public class VehicleController : MonoBehaviour
         }
 
         /* original ultra-smooth positional blend */
-        transform.localPosition =
-            Vector3.Lerp(transform.localPosition, curPos, 0.02f);
+        rb.MovePosition(Vector3.Lerp(rb.position, curPos, 0.02f));
     }
 
     private static Vector3 CalcAngularVel(Quaternion from, Quaternion to, float dt)

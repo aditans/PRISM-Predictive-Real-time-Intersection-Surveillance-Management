@@ -14,11 +14,15 @@
     <vType id="EgoBike" length="1.80" vClass="bicycle" color="16,186,16"/>
     <vType id="EgoCar" length="4.81" width="2.16" color="69,56,56"/>
     <vType id="EgoScooter" length="1.09" vClass="scooter"/>
+    <vType id="CrashCar" length="4.81" width="2.16" color="255,0,0" minGap="0" tau="0.1" accel="10" decel="4" emergencyDecel="9" apparentDecel="0.1" sigma="0"/>
     <!-- Vehicles, persons and containers (sorted by depart) -->
     <flow id="f_1" type="301" begin="0.00" color="0,128,0" from="Node2_3_WB" to="Node1_2_WB" end="3600.00" vehsPerHour="500"/>
     <flow id="f_10" type="302" begin="0.00" from="E4" to="Node2_7_NB" via="Node2_3_WB" end="3600.00" vehsPerHour="500"/>
     <flow id="f_11" type="301" begin="0.00" color="41,181,224" from="E5" to="Node_2_5_SB" via="E7 Node2_3_WB" end="3600.00" vehsPerHour="500"/>
     <flow id="f_12" type="301" begin="0.00" color="41,181,224" from="Node2_5_NB" to="E4" via="Node1_2_WB" end="3600.00" vehsPerHour="500"/>
     <flow id="f_3" type="305" begin="0.00" from="Node2_7_SB" to="Node2_3_EB" end="3600.00" vehsPerHour="500"/>
+    <!-- One-shot collision pair: same route, same time, close start positions -->
+    <trip id="accident_leader" type="CrashCar" depart="120.00" from="Node1_2_EB" to="Node2_3_EB" departLane="0" departSpeed="0"/>
+    <trip id="accident_follower" type="CrashCar" depart="120.00" from="Node1_2_EB" to="Node2_3_EB" departLane="0" departSpeed="20"/>
     <trip id="f_0.0" type="EgoCar" depart="540.00" from="Node1_2_EB" to="Node2_3_EB"/>
 </routes>

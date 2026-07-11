@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-04-04 17:00:35 by Eclipse SUMO sumo Version 1.24.0
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="Sumo2Unity.net.xml"/>
+        <route-files value="Sumo2Unity.rou.xml"/>
+        <additional-files value="Sumo2Unity.Poly.xml"/>
+    </input>
+
+    <output>
+        <collision-output value="..\Results\test_collisions.xml"/>
+    </output>
+
+    <time>
+        <end value="220"/>
+        <step-length value="0.1"/>
+    </time>
+
+    <processing>
+        <collision.action value="warn"/>
+        <collision.stoptime value="15"/>
+        <collision.check-junctions value="true"/>
+        <collision.mingap-factor value="0"/>
+        <emergency-insert value="true"/>
+    </processing>
+
+</sumoConfiguration>
+-->
+
+<collisions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/collision_file.xsd">
+    <collision time="121.10" type="collision" lane="Node1_2_EB_0" pos="6.82" collider="accident_follower" victim="accident_leader" colliderType="CrashCar" victimType="CrashCar" colliderSpeed="16.46" victimSpeed="10.73" colliderFront="-68.59,-4.62" colliderBack="-73.40,-4.63" victimFront="-63.90,-4.60" victimBack="-68.71,-4.62"/>
+</collisions>

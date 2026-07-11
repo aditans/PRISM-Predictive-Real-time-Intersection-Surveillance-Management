@@ -51,7 +51,7 @@ namespace UnityStandardAssets.Vehicles.Car
         public bool Skidding { get; private set; }
         public float BrakeInput { get; private set; }
         public float CurrentSteerAngle{ get { return m_SteerAngle; }}
-        public float CurrentSpeed{ get { return m_Rigidbody.linearVelocity.magnitude*2.23693629f; }}
+        public float CurrentSpeed{ get { return (m_Rigidbody != null ? m_Rigidbody.linearVelocity.magnitude : 0f)*2.23693629f; }}
         public float MaxSpeed{get { return m_Topspeed; }}
         public float Revs { get; private set; }
         public float AccelInput { get; private set; }
@@ -59,6 +59,11 @@ namespace UnityStandardAssets.Vehicles.Car
   
 
         // Use this for initialization
+        private void Awake()
+        {
+            m_Rigidbody = GetComponent<Rigidbody>();
+        }
+
         private void Start()
         {
             m_WheelMeshLocalRotations = new Quaternion[4];
@@ -70,7 +75,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
             m_MaxHandbrakeTorque = float.MaxValue;
 
-            m_Rigidbody = GetComponent<Rigidbody>();
+            if (m_Rigidbody == null) m_Rigidbody = GetComponent<Rigidbody>();
             m_CurrentTorque = m_FullTorqueOverAllWheels - (m_TractionControl*m_FullTorqueOverAllWheels);
         }
 

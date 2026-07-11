@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-04-06 14:01:40 by Eclipse SUMO GUI Version 1.24.0
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\aditanshu sahu\Downloads\SUMO2Unity-main\SUMO2Unity-main\Scenario2\Sumo2Unity.net.xml"/>
+        <route-files value="C:\Users\aditanshu sahu\Downloads\SUMO2Unity-main\SUMO2Unity-main\Scenario2\Sumo2Unity.rou.xml"/>
+        <additional-files value="C:\Users\aditanshu sahu\Downloads\SUMO2Unity-main\SUMO2Unity-main\Scenario2\Sumo2Unity.Poly.xml"/>
+    </input>
+
+    <output>
+        <collision-output value="C:\Users\aditanshu sahu\Downloads\SUMO2Unity-main\SUMO2Unity-main\Results\sumo_collisions.xml"/>
+    </output>
+
+    <time>
+        <step-length value="0.1"/>
+    </time>
+
+    <processing>
+        <lateral-resolution value="0.3"/>
+        <collision.action value="warn"/>
+        <intermodal-collision.action value="warn"/>
+        <collision.stoptime value="15"/>
+        <intermodal-collision.stoptime value="0"/>
+        <collision.check-junctions value="true"/>
+        <collision.mingap-factor value="0"/>
+    </processing>
+
+    <traci_server>
+        <remote-port value="57071"/>
+    </traci_server>
+
+    <gui_only>
+        <delay value="0"/>
+    </gui_only>
+
+</sumoConfiguration>
+-->
+
+<collisions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/collision_file.xsd">
+    <collision time="605.10" type="collision" lane="Node2_3_WB_0" pos="64.68" collider="f_10.75" victim="f_10.76" colliderType="302" victimType="302" colliderSpeed="0.00" victimSpeed="25.00" colliderFront="21.54,11.80" colliderBack="26.22,11.85" victimFront="19.25,11.96" victimBack="23.92,11.82"/>
+    <collision time="626.90" type="junction" lane=":J1_11_2" pos="12.05" collider="f_0.0" victim="f_12.83" colliderType="EgoCar" victimType="301" colliderSpeed="1.51" victimSpeed="7.23" colliderFront="5.24,0.72" colliderBack="0.43,0.69" victimFront="5.32,0.41" victimBack="7.72,-3.59"/>
+    <collision time="638.40" type="junction" lane=":J1_11_0" pos="12.37" collider="f_0.0" victim="f_12.84" colliderType="EgoCar" victimType="301" colliderSpeed="5.31" victimSpeed="0.00" colliderFront="5.59,-3.04" colliderBack="0.78,-3.07" victimFront="6.24,-1.06" victimBack="8.01,-5.30"/>
+    <collision time="645.10" type="collision" lane="Node2_3_WB_0" pos="64.68" collider="f_10.75" victim="f_10.78" colliderType="302" victimType="302" colliderSpeed="0.00" victimSpeed="25.00" colliderFront="21.54,11.80" colliderBack="26.22,11.85" victimFront="19.25,11.96" victimBack="23.92,11.82"/>
+    <collision time="648.00" type="junction" lane=":J1_23_0" pos="15.21" collider="f_3.87" victim="f_11.77" colliderType="305" victimType="301" colliderSpeed="9.11" victimSpeed="0.00" colliderFront="16.53,2.73" colliderBack="12.04,4.16" victimFront="15.85,4.67" victimBack="20.48,5.37"/>
+    <collision time="649.20" type="junction" lane=":J1_16_2" pos="25.04" collider="f_0.0" victim="f_12.84" colliderType="EgoCar" victimType="301" colliderSpeed="2.09" victimSpeed="0.00" colliderFront="5.10,-7.70" colliderBack="5.01,-2.90" victimFront="6.24,-1.06" victimBack="8.01,-5.30"/>
+    <collision time="649.50" type="junction" lane=":J1_9_0" pos="2.32" collider="f_12.85" victim="f_0.0" colliderType="301" victimType="EgoCar" colliderSpeed="0.02" victimSpeed="2.00" colliderFront="8.44,-7.78" colliderBack="8.90,-12.43" victimFront="6.64,-8.42" victimBack="6.55,-3.62"/>
+    <collision time="649.70" type="junction" lane=":J1_9_0" pos="2.32" collider="f_12.85" victim="f_0.0" colliderType="301" victimType="EgoCar" colliderSpeed="0.00" victimSpeed="4.14" colliderFront="8.44,-7.78" colliderBack="8.90,-12.43" victimFront="7.42,-8.72" victimBack="7.96,-3.94"/>
+    <collision time="651.10" type="junction" lane=":J1_9_0" pos="2.32" collider="f_12.85" victim="f_0.0" colliderType="301" victimType="EgoCar" colliderSpeed="0.00" victimSpeed="4.12" colliderFront="8.44,-7.78" colliderBack="8.90,-12.43" victimFront="6.92,-8.73" victimBack="6.83,-3.93"/>
+    <collision time="659.90" type="junction" lane=":J1_22_0" pos="10.46" collider="f_0.0" victim="f_3.89" colliderType="EgoCar" victimType="305" colliderSpeed="7.20" victimSpeed="0.00" colliderFront="6.71,8.45" colliderBack="3.57,4.65" victimFront="7.89,7.79" victimBack="5.92,12.09"/>
+    <collision time="660.10" type="junction" lane=":J1_6_2" pos="18.65" collider="f_0.0" victim="f_3.89" colliderType="EgoCar" victimType="305" colliderSpeed="6.40" victimSpeed="0.00" colliderFront="8.39,8.62" colliderBack="8.48,3.80" victimFront="7.89,7.79" victimBack="5.92,12.09"/>
+    <collision time="660.20" type="junction" lane=":J1_6_2" pos="18.99" collider="f_0.0" victim="f_3.88" colliderType="EgoCar" victimType="305" colliderSpeed="5.50" victimSpeed="0.00" colliderFront="8.38,8.96" colliderBack="8.47,4.14" victimFront="13.45,3.34" victimBack="9.29,5.76"/>
+    <collision time="671.30" type="collision" lane="Node1_2_WB_2" pos="5.43" collider="f_0.0" victim="f_12.86" colliderType="EgoCar" victimType="301" colliderSpeed="3.04" victimSpeed="10.44" colliderFront="-12.25,3.94" colliderBack="-7.44,3.96" victimFront="-13.85,5.18" victimBack="-9.17,5.20"/>
+    <collision time="680.80" type="junction" lane=":J1_23_0" pos="15.28" collider="f_3.90" victim="f_11.77" colliderType="305" victimType="301" colliderSpeed="7.85" victimSpeed="0.00" colliderFront="16.61,2.72" colliderBack="12.10,4.12" victimFront="15.85,4.67" victimBack="20.48,5.37"/>
+    <collision time="685.10" type="collision" lane="Node2_3_WB_0" pos="64.68" collider="f_10.75" victim="f_10.80" colliderType="302" victimType="302" colliderSpeed="0.00" victimSpeed="25.00" colliderFront="21.54,11.80" colliderBack="26.22,11.85" victimFront="19.25,11.96" victimBack="23.92,11.82"/>
+    <collision time="701.00" type="junction" lane=":J1_23_0" pos="15.11" collider="f_3.92" victim="f_11.77" colliderType="305" victimType="301" colliderSpeed="5.94" victimSpeed="0.00" colliderFront="16.44,2.74" colliderBack="11.95,4.21" victimFront="15.85,4.67" victimBack="20.48,5.37"/>
+</collisions>
